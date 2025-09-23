@@ -507,9 +507,6 @@ We welcome contributions! Please see our [Contributing Guidelines](CONTRIBUTING.
 4. Push to the branch (`git push origin feature/AmazingFeature`)
 5. Open a Pull Request
 
-## 📝 License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
 ## 🙏 Acknowledgments
 
@@ -518,12 +515,6 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - Open-source ML community
 - Healthcare data providers
 
-## 📞 Support
-
-- **Documentation**: [docs/](docs/)
-- **Issues**: [GitHub Issues](https://github.com/yourusername/healthcare-whatsapp-bot/issues)
-- **Email**: support@healthcare-bot.com
-- **WhatsApp**: +91-XXXXXXXXXX
 
 ## 🔄 Version History
 
@@ -535,3 +526,4 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ---
 
 **Made with ❤️ for better healthcare accessibility**
+
