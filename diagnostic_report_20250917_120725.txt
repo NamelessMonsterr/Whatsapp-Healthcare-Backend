@@ -1,0 +1,12 @@
+WHATSAPP BOT DIAGNOSTIC REPORT
+Generated: 2025-09-17 12:07:25.388506
+============================================================
+
+ERRORS:
+
+WARNINGS:
+
+SYSTEM INFO:
+  OS: Windows 10.0.26100
+  Python: 3.10.0 (tags/v3.10.0:b494f59, Oct  4 2021, 19:00:18) [MSC v.1929 64 bit (AMD64)]
+  Current Dir: C:\Users\91701\Downloads\HC-Back
