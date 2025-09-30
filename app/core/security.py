@@ -8,7 +8,7 @@ from datetime import datetime, timedelta
 from typing import Optional
 import logging
 import re
-import json
+import uuid
 from app.config import settings
 
 logger = logging.getLogger(__name__)
@@ -257,56 +257,159 @@ def generate_rate_limit_key(identifier: str, window: int = 60) -> str:
     
     # FIXED: Use current time window
     current_window = int(datetime.utcnow().timestamp() / window)
-_phone(number)
-            print(f"  ✅ {number} -> {validated}")
-        except Exception as e:
-            print(f"  ❌ {number} -> Error: {e}")
-    
-    # Test webhook verification
-    print("\n🔍 Webhook verification tests:")
-    test_verify_data = {
-        "hub.mode": "subscribe",
-        "hub.verify_token": settings.verify_token,
-        "hub.challenge": "test_challenge_123"
-    }
-    
-    result = whatsapp_service.verify_webhook(test_verify_data)
-    print(f"  Valid token: {'✅' if result else '❌'}")
-    
-    # Test with invalid token
-    test_verify_data["hub.verify_token"] = "invalid_token"
-    result = whatsapp_service.verify_webhook(test_verify_data)
-    print(f"  Invalid token: {'✅' if not result else '❌'}")
-    
-    # Test message parsing
-    print("\n📨 Message parsing tests:")
-    test_webhook_data = {
-        "entry": [{
-            "changes": [{
-                "value": {
-                    "messages": [{
-                        "id": "test_msg_123",
-                        "from": "917019567529",
-                        "timestamp": "1234567890",
-                        "type": "text",
-                        "text": {"body": "Hello, I have a headache"}
-                    }],
-                    "contacts": [{
-                        "profile": {"name": "Test User"}
-                    }]
-                }
-            }]
-        }]
-    }
-    
-    parsed = whatsapp_service.parse_webhook_message(test_webhook_data)
-    if parsed:
-        print(f"  ✅ Parsed message: {parsed}")
-    else:
-        print("  ❌ Failed to parse message")
-    
-    print("\n🎉 WhatsApp service testing completed!")
+    return f"rate_limit:{identifier}:{current_window}"
 
-if __name__ == "__main__":
-    import asyncio
-    asyncio.run(test_whatsapp_service())
+def validate_alert_type(alert_type: str) -> bool:
+    """
+    Validate alert type against allowed types
+
+    Args:
+        alert_type: Alert type to validate
+
+    Returns:
+        True if valid
+    """
+    allowed_types = {"info", "warning", "emergency", "outbreak", "health_advisory"}
+    return alert_type.lower() in allowed_types
+
+def validate_priority(priority: str) -> bool:
+    """
+    Validate priority level
+
+    Args:
+        priority: Priority to validate
+
+    Returns:
+        True if valid
+    """
+    allowed_priorities = {"low", "normal", "high", "critical"}
+    return priority.lower() in allowed_priorities
+
+def validate_disease_name(disease: str) -> bool:
+    """
+    Validate disease name format
+
+    Args:
+        disease: Disease name to validate
+
+    Returns:
+        True if valid
+    """
+    if not disease or len(disease) < 2 or len(disease) > 100:
+        return False
+
+    # Basic pattern - letters, spaces, numbers, and common punctuation
+    pattern = r'^[a-zA-Z0-9\s\-\(\)\.,]+$'
+    return bool(re.match(pattern, disease))
+
+def validate_region_name(region: str) -> bool:
+    """
+    Validate region name format
+
+    Args:
+        region: Region name to validate
+
+    Returns:
+        True if valid
+    """
+    if not region or len(region) < 2 or len(region) > 200:
+        return False
+
+    # Basic pattern - letters, spaces, numbers, and common punctuation
+    pattern = r'^[a-zA-Z0-9\s\-\(\)\.,/]+$'
+    return bool(re.match(pattern, region))
+
+def sanitize_input_string(input_str: str, max_length: int = 500) -> str:
+    """
+    Sanitize input string by removing potentially dangerous characters
+
+    Args:
+        input_str: String to sanitize
+        max_length: Maximum allowed length
+
+    Returns:
+        Sanitized string
+    """
+    if not input_str:
+        return ""
+
+    # Truncate if too long
+    if len(input_str) > max_length:
+        input_str = input_str[:max_length]
+
+    # Remove potentially dangerous characters
+    dangerous_chars = ['<', '>', '"', "'", '&', '%', '$', '#', '@', '!', '*']
+    for char in dangerous_chars:
+        input_str = input_str.replace(char, '')
+
+    # Remove multiple spaces
+    import re
+    input_str = re.sub(r'\s+', ' ', input_str).strip()
+
+    return input_str
+
+def create_audit_log(action: str, user_id: str, details: dict = None) -> dict:
+    """
+    Create audit log entry
+
+    Args:
+        action: Action performed
+        user_id: User who performed the action
+        details: Additional details
+
+    Returns:
+        Audit log entry
+    """
+    return {
+        "action": action,
+        "user_id": user_id,
+        "timestamp": datetime.utcnow().isoformat(),
+        "details": details or {},
+        "id": secrets.token_urlsafe(16)
+    }
+
+def mask_sensitive_data(data: str, mask_char: str = "*", visible_chars: int = 4) -> str:
+    """
+    Mask sensitive data for logging
+
+    Args:
+        data: Data to mask
+        mask_char: Character to use for masking
+        visible_chars: Number of characters to keep visible
+
+    Returns:
+        Masked data
+    """
+    if not data:
+        return ""
+
+    if len(data) <= visible_chars:
+        return mask_char * len(data)
+
+    visible_start = data[:visible_chars // 2]
+    visible_end = data[-visible_chars // 2:]
+    masked_middle = mask_char * (len(data) - visible_chars)
+
+    return f"{visible_start}{masked_middle}{visible_end}"
+
+# FIXED: Added security headers middleware
+def add_security_headers(response):
+    """
+    Add security headers to response
+
+    Args:
+        response: FastAPI response object
+
+    Returns:
+        Response with security headers
+    """
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["X-XSS-Protection"] = "1; mode=block"
+    response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+
+    # Remove server identification
+    response.headers["Server"] = "HealthcareBot"
+
+    return response
