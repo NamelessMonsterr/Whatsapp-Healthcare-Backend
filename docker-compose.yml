@@ -1,0 +1,76 @@
+version: '3.8'
+
+services:
+  healthcare-bot:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        APP_USER: healthcarebot
+        APP_UID: 1000
+        APP_GID: 1000
+    container_name: healthcare-whatsapp-bot
+    restart: unless-stopped
+    ports:
+      - "5000:5000"
+    environment:
+      # Core Configuration
+      - DEBUG=False
+      - LOG_LEVEL=INFO
+      - HOST=0.0.0.0
+      - PORT=5000
+      
+      # WhatsApp Configuration
+      - WHATSAPP_TOKEN=${WHATSAPP_TOKEN}
+      - WHATSAPP_PHONE_NUMBER_ID=${WHATSAPP_PHONE_NUMBER_ID}
+      - WHATSAPP_BUSINESS_ACCOUNT_ID=${WHATSAPP_BUSINESS_ACCOUNT_ID}
+      - VERIFY_TOKEN=${VERIFY_TOKEN:-healthcare_bot_verify_secure_123}
+      
+      # Twilio Configuration
+      - TWILIO_ACCOUNT_SID=${TWILIO_ACCOUNT_SID}
+      - TWILIO_AUTH_TOKEN=${TWILIO_AUTH_TOKEN}
+      - TWILIO_SMS_NUMBER=${TWILIO_SMS_NUMBER}
+      
+      # Database Configuration
+      - DATABASE_URL=${DATABASE_URL:-sqlite:///./data/healthcare.db}
+      - DATABASE_ECHO=False
+      
+      # Security Configuration
+      - SECRET_KEY=${SECRET_KEY}
+      - ADMIN_API_KEY=${ADMIN_API_KEY}
+      - ENCRYPTION_KEY=${ENCRYPTION_KEY}
+      
+      # ML Model Configuration
+      - USE_GPU=False
+      - MODEL_DEVICE=cpu
+      - MODEL_CACHE_DIR=/app/data/models
+      - HUGGINGFACE_TOKEN=${HUGGINGFACE_TOKEN}
+      
+      # Rate Limiting
+      - RATE_LIMIT_ENABLED=True
+      - RATE_LIMIT_PER_MINUTE=60
+      - RATE_LIMIT_PER_HOUR=1000
+      - RATE_LIMIT_PER_DAY=10000
+      
+      # Admin Configuration
+      - ADMIN_PHONE_NUMBERS=${ADMIN_PHONE_NUMBERS}
+      
+    volumes:
+      - ./data:/app/data
+      - ./logs:/app/logs
+      - ./temp:/app/temp
+    networks:
+      - healthcare-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+networks:
+  healthcare-network:
+    driver: bridge
+
+volumes:
+  healthcare-data:
