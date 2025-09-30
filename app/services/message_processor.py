@@ -1,5 +1,5 @@
 """
-Message Processor Service - FIXED with proper error handling and validation
+Message Processor Service - COMPLETELY FIXED with proper validation and error handling
 """
 import logging
 from typing import Dict, Any, Optional
@@ -13,7 +13,7 @@ from app.services.whatsapp import whatsapp_service
 from app.ml.healthcare_models import healthcare_service
 from app.core.database import DatabaseManager, get_db_context
 from app.config import settings
-from app.core.security import validate_whatsapp_phone, sanitize_input_string
+from app.core.security import validate_whatsapp_phone, sanitize_input_string, mask_sensitive_data
 
 logger = logging.getLogger(__name__)
 
@@ -147,12 +147,6 @@ class MessageProcessor:
             # FIXED: Sanitize input text
             text = sanitize_input_string(text, max_length=1000)
             
-            # Mark message as read (with error handling)
-            try:
-                await self.whatsapp.mark_as_read(message_id)
-            except Exception as e:
-                logger.warning(f"Failed to mark message as read: {e}")
-
             # FIXED: Use proper database transaction handling
             user_language = 'en'
             conversation_id = None
@@ -162,6 +156,10 @@ class MessageProcessor:
                 with get_db_context() as db:
                     # Get or create user
                     user = self.db_manager.create_user(db, sender, contact_name)
+                    if not user:
+                        logger.error("Failed to create user")
+                        return {"status": "error", "error": "Failed to create user"}
+                    
                     user_id = user.id
                     
                     # Extract user language preference
@@ -169,6 +167,10 @@ class MessageProcessor:
                     
                     # Get or create conversation
                     conversation = self.db_manager.get_or_create_active_conversation(db, user.id)
+                    if not conversation:
+                        logger.error("Failed to create conversation")
+                        return {"status": "error", "error": "Failed to create conversation"}
+                    
                     conversation_id = conversation.id
                     
                     # Save incoming message
@@ -180,6 +182,9 @@ class MessageProcessor:
                         text,
                         message_type='text'
                     )
+                    
+                    if not user_message:
+                        logger.warning("Failed to save user message")
                     
                     logger.info(f"Saved user message: {message_id} for user {mask_sensitive_data(sender)}")
                     
@@ -266,7 +271,8 @@ class MessageProcessor:
                             detected_intent=response.intent
                         )
                         
-                        logger.info(f"Saved bot response: {bot_message_id}")
+                        if bot_message:
+                            logger.info(f"Saved bot response: {bot_message_id}")
                         
                 except Exception as e:
                     logger.error(f"Database error during response saving: {e}")
@@ -438,28 +444,9 @@ class MessageProcessor:
         return {
             "total_processed": getattr(self, '_total_processed', 0),
             "successful": getattr(self, '_successful', 0),
-            "failed": getattr(self_phone(number)
-            print(f"  ✅ {number} -> {validated}")
-        except Exception as e:
-            print(f"  ❌ {number} -> Error: {e}")
-    
-    # Test webhook verification
-    print("\n🔍 Webhook verification tests:")
-    test_data = {
-        "hub.mode": "subscribe",
-        "hub.verify_token": settings.verify_token,
-        "hub.challenge": "test_challenge"
-    }
-    
-    result = whatsapp_service.verify_webhook(test_data)
-    print(f"  {'✅' if result else '❌'} Valid webhook: {result}")
-    
-    test_data["hub.verify_token"] = "wrong_token"
-    result = whatsapp_service.verify_webhook(test_data)
-    print(f"  {'✅' if not result else '❌'} Invalid webhook: {not result}")
-    
-    print("\n🎉 WhatsApp service tests completed!")
+            "failed": getattr(self, '_failed', 0),
+            "last_processed": getattr(self, '_last_processed', None)
+        }
 
-if __name__ == "__main__":
-    import asyncio
-    asyncio.run(test_whatsapp_service())
+# Create service instance
+message_processor = MessageProcessor()
